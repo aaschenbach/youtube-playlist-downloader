@@ -71,51 +71,72 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ### Com uv *(recomendado)*
 
-```bash
+No Windows, abra o PowerShell e execute:
+
+```powershell
 git clone https://github.com/aaschenbach/youtube-playlist-downloader.git
 cd youtube-playlist-downloader
 uv sync
+uv run ytdl
 ```
 
-### Com uv pip
+Se o projeto já estiver clonado, entre na pasta existente e execute apenas `uv sync` e `uv run ytdl`. **Com `uv run ytdl`, não é necessário ativar a `.venv`**: o uv executa o programa dentro dela.
 
-Se você usa o ambiente criado pelo uv, use `uv pip` em vez de presumir que `pip` está disponível:
+### Com uv pip e ativação da .venv (PowerShell)
+
+Esta é uma alternativa completa ao fluxo acima. Na pasta do projeto, crie a `.venv` apenas se ela ainda não existir:
 
 ```powershell
 uv venv
 uv pip install -e .
+.\.venv\Scripts\Activate.ps1
+ytdl
 ```
 
-Para este projeto, prefira `uv sync`: ele instala o projeto e sincroniza o ambiente com o lock. `uv pip install` instala diretamente no ambiente e não atualiza o lock; um `uv sync` posterior pode desfazer instalações avulsas.
+`uv pip` instala no ambiente do projeto mesmo sem ativação. Para executar `ytdl` diretamente pelo nome, ative a `.venv` antes. Repita a ativação sempre que abrir um novo terminal. Para sair do ambiente, execute `deactivate`.
+
+Para este projeto, prefira `uv sync` e `uv run ytdl`. `uv pip install` instala diretamente no ambiente e não atualiza o lock; um `uv sync` ou `uv run` posterior pode desfazer instalações avulsas.
 
 ### Com pip (Python com pip instalado)
 
-```bash
+No PowerShell, com um Python que tenha pip instalado:
+
+```powershell
 git clone https://github.com/aaschenbach/youtube-playlist-downloader.git
 cd youtube-playlist-downloader
-pip install -e .
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e .
+ytdl
 ```
 
-> **Nota**: se `pip install` reclamar de permissão, use `pip install --user -e .` ou crie um virtualenv antes:
-> ```bash
-> python -m venv .venv
-> # Windows
-> .venv\Scripts\activate
-> # macOS / Linux
-> source .venv/bin/activate
-> pip install -e .
-> ```
+No macOS/Linux, a ativação é `source .venv/bin/activate`.
 
 ---
 
 ## Como usar
 
-```bash
-# Com uv
-uv run ytdl
+Execute os comandos na pasta do projeto. Escolha uma das opções:
 
-# Com pip / ambiente ativado
+### Rodar com uv, sem ativação manual
+
+```powershell
+uv run ytdl
+```
+
+### Rodar diretamente no PowerShell, ativando a .venv
+
+```powershell
+.\.venv\Scripts\Activate.ps1
 ytdl
+```
+
+Essa ativação é o passo necessário antes de chamar apenas `ytdl`. No Prompt de Comando (cmd), use `.venv\Scripts\activate.bat`; no macOS/Linux, use `source .venv/bin/activate`.
+
+Se preferir executar sem ativar e sem sincronizar dependências, no PowerShell use:
+
+```powershell
+.\.venv\Scripts\ytdl.exe
 ```
 
 O programa abre um menu interativo e guia você passo a passo. Não é necessário nenhum argumento na linha de comando.
@@ -232,6 +253,8 @@ uv run python -m yt_dlp --ignore-config --skip-download --write-subs --write-aut
 
 Substitua a pasta e a URL pelos mesmos valores do download original. O comando não usa o histórico nem baixa vídeo/áudio e preserva legendas existentes. Com Deno, troque `--js-runtimes node` por `--js-runtimes deno`. Com pip, use `python -m yt_dlp` no lugar de `uv run python -m yt_dlp`.
 
+Se instalou ou atualizou via `uv pip`, substitua `uv run python` por `.\.venv\Scripts\python.exe` para usar exatamente as versões instaladas, sem sincronizar o lock. A mesma substituição vale para o comando de download forçado abaixo.
+
 ---
 
 ### `ERROR: ffmpeg not found`
@@ -267,12 +290,15 @@ Substitua a pasta e a URL pelos mesmos valores do download original. O comando n
 
 **Causa**: o pacote não foi instalado corretamente.  
 **Solução**:
-```bash
+```powershell
 # Com uv
 uv sync
 
-# Com pip
-pip install -e .
+# Com uv pip
+uv pip install -e .
+
+# Com pip tradicional, após ativar a .venv
+python -m pip install -e .
 ```
 
 ---
@@ -280,7 +306,7 @@ pip install -e .
 ### `command not found: ytdl` / `ytdl não é reconhecido`
 
 **Causa**: o script de entrada não está no PATH.  
-**Solução**: use sempre `uv run ytdl` (com uv) ou ative o virtualenv antes de chamar `ytdl`.
+**Solução**: execute `uv run ytdl` na pasta do projeto. Se quiser chamar apenas `ytdl`, execute antes `.\.venv\Scripts\Activate.ps1` no PowerShell. Se o erro continuar, reinstale o projeto conforme a seção [Instalação](#instalação).
 
 ---
 
