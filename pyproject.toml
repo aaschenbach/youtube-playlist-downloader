@@ -1,0 +1,24 @@
+[project]
+name = "ytdl"
+version = "1.0.0"
+description = "Downloader interativo de vídeos e playlists do YouTube"
+readme = "README.md"
+authors = [
+    { name = "Alexandre Aschenbach", email = "alexandre.aschenbach@gmail.com" }
+]
+requires-python = ">=3.11"
+dependencies = [
+    "yt-dlp[default]>=2025.1.15",
+    "rich>=13.0.0",
+    "questionary>=2.0.0",
+]
+
+[project.scripts]
+ytdl = "ytdl.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ytdl"]
