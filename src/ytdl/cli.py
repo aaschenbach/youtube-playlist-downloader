@@ -71,7 +71,8 @@ _ERROR_HINTS: list[tuple[str, str]] = [
         "Unable to extract",
         "Não foi possível extrair as informações do vídeo.\n"
         "  → Verifique se a URL está correta e se o vídeo ainda existe.\n"
-        "  → Tente atualizar o yt-dlp: uv sync  ou  pip install -U yt-dlp",
+        "  → Tente atualizar o yt-dlp: uv sync --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs\n"
+        "  → Com pip: python -m pip install -U 'yt-dlp[default,curl-cffi]'",
     ),
     (
         "PermissionError",
@@ -277,9 +278,14 @@ def run_once() -> bool:
     cfg = build_config(url, output_dir, mode, subtitles, continue_on_error)
 
     try:
-        download(cfg)
+        result = download(cfg)
         console.print()
-        success("Download concluído!")
+        if result.exit_code:
+            warn("Download encerrado com erros. Alguns itens podem não ter sido baixados.")
+        elif result.had_warnings:
+            warn("Download encerrado com avisos. Confira as mensagens e as legendas na pasta de destino.")
+        else:
+            success("Download concluído!")
     except DownloadError as exc:
         console.print()
         hint = _friendly_error(str(exc))

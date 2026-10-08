@@ -3,6 +3,8 @@
 Baixe vídeos e playlists do YouTube com uma interface CLI amigável e interativa.  
 Suporta vídeo (MP4), áudio (MP3), legendas automáticas e retoma downloads já iniciados.
 
+Este projeto usa a biblioteca [yt-dlp](https://github.com/yt-dlp/yt-dlp) para extrair metadados, selecionar formatos e baixar vídeos, áudio e legendas. O `ytdl` fornece o menu interativo e configura o fluxo de download. Créditos aos mantenedores e colaboradores do yt-dlp, cujo código é disponibilizado sob a [Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE). As demais dependências possuem suas próprias licenças.
+
 ---
 
 ## Índice
@@ -22,6 +24,7 @@ Suporta vídeo (MP4), áudio (MP3), legendas automáticas e retoma downloads já
 |-----------|--------------|----------------|
 | Python    | 3.11         | Rodar o programa |
 | FFmpeg    | qualquer     | Mesclar vídeo + áudio em MP4 |
+| Deno ou Node.js | Deno 2.3+ / Node 22+ | Resolver desafios JavaScript do YouTube |
 | uv *(opcional)* | qualquer | Gerenciar dependências de forma mais rápida |
 
 ### Instalar o Python
@@ -39,6 +42,18 @@ Suporta vídeo (MP4), áudio (MP3), legendas automáticas e retoma downloads já
 - **Linux**: `sudo apt install ffmpeg`
 
 Verifique se está instalado: `ffmpeg -version`
+
+### Instalar um runtime JavaScript
+
+Instale [Deno](https://docs.deno.com/runtime/getting_started/installation/) (recomendado pelo yt-dlp) ou [Node.js](https://nodejs.org/en/download/), disponível no PATH. No Windows, uma alternativa é:
+
+```powershell
+winget install --id OpenJS.NodeJS.LTS -e
+```
+
+Reabra o terminal e verifique com `node --version` (22 ou superior) ou `deno --version` (2.3 ou superior). O programa habilita automaticamente o Node encontrado no PATH e mantém o Deno habilitado.
+
+As dependências do projeto incluem `yt-dlp-ejs` para resolver os desafios e `curl-cffi` para requisições com características de navegador. Isso não garante que o YouTube aceite todas as requisições. Consulte o [guia oficial de EJS](https://github.com/yt-dlp/yt-dlp/wiki/EJS).
 
 ### Instalar o uv *(recomendado)*
 
@@ -62,7 +77,18 @@ cd youtube-playlist-downloader
 uv sync
 ```
 
-### Com pip
+### Com uv pip
+
+Se você usa o ambiente criado pelo uv, use `uv pip` em vez de presumir que `pip` está disponível:
+
+```powershell
+uv venv
+uv pip install -e .
+```
+
+Para este projeto, prefira `uv sync`: ele instala o projeto e sincroniza o ambiente com o lock. `uv pip install` instala diretamente no ambiente e não atualiza o lock; um `uv sync` posterior pode desfazer instalações avulsas.
+
+### Com pip (Python com pip instalado)
 
 ```bash
 git clone https://github.com/aaschenbach/youtube-playlist-downloader.git
@@ -153,6 +179,61 @@ Você pode:
 
 ## Erros comuns e como resolver
 
+### Atualizar a versão do projeto
+
+Na pasta do repositório:
+
+```powershell
+git pull --ff-only
+uv sync
+```
+
+Se o Git apontar conflito ou alterações locais, revise essas alterações antes de continuar. Para instalações via `uv pip`, use `uv pip install -e .` após atualizar o código; com pip tradicional, use `python -m pip install -e .`.
+
+### Atualizar o yt-dlp e as dependências
+
+O YouTube muda com frequência. Antes de investigar uma falha de extração, atualize na pasta do projeto:
+
+```powershell
+# Com uv (uv sync sozinho mantém as versões do lock existente)
+uv sync --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs
+
+# Alternativa: instalação direta no ambiente do uv, sem atualizar o lock
+uv pip install --upgrade "yt-dlp[default,curl-cffi]"
+
+# Com pip tradicional / ambiente ativado
+python -m pip install -U "yt-dlp[default,curl-cffi]"
+```
+
+### `No supported JavaScript runtime could be found`
+
+**Causa**: nenhum runtime compatível está disponível para o yt-dlp. O download pode continuar, mas alguns formatos podem faltar.
+**Solução**: instale Deno ou Node conforme [Requisitos](#requisitos), reabra o terminal e atualize as dependências. Instalar apenas o pacote Python `yt-dlp-ejs` não instala o runtime.
+
+### `HTTP Error 429: Too Many Requests`
+
+**Causa**: o YouTube está limitando requisições. Pode afetar metadados ou legendas mesmo quando vídeo e áudio são baixados normalmente.
+**Solução**: aguarde antes de tentar novamente e evite downloads simultâneos. Com legendas habilitadas, o programa espera 1 segundo entre requisições de extração e 5 segundos antes de cada legenda; essas pausas reduzem a frequência, mas não garantem eliminar o bloqueio. Veja a [FAQ oficial sobre HTTP 429](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#http-error-429-too-many-requests-or-402-payment-required).
+
+`Unable to download video subtitles` significa que aquela legenda falhou. A linha `Writing video subtitles to` anuncia uma tentativa e não comprova que o arquivo foi baixado.
+
+### `no impersonate target is available`
+
+**Causa**: falta suporte para requisições com características de navegador.
+**Solução**: rode `uv sync` ou `python -m pip install -e .` para instalar as dependências atuais, que incluem `curl-cffi`. Essa dependência não elimina necessariamente o HTTP 429. Veja a [documentação oficial sobre impersonation](https://github.com/yt-dlp/yt-dlp#impersonation).
+
+### Recuperar somente legendas que falharam
+
+Vídeos concluídos entram em `.download-archive.txt` mesmo quando alguma legenda falha. Rodar novamente o menu na mesma pasta pode pular esses vídeos e suas legendas. Preserve o histórico e use o yt-dlp diretamente para tentar só as legendas, depois de aguardar o bloqueio passar:
+
+```powershell
+uv run python -m yt_dlp --ignore-config --skip-download --write-subs --write-auto-subs --sub-langs "pt,pt-BR,en" --sub-format srt --sleep-requests 1 --sleep-subtitles 5 --js-runtimes node --ignore-errors --no-overwrites -P "C:\Users\SeuNome\Downloads\SuaPlaylist" -o "%(playlist_index)03d - %(title)s [%(id)s].%(ext)s" "https://www.youtube.com/playlist?list=PLxxxxxxxx"
+```
+
+Substitua a pasta e a URL pelos mesmos valores do download original. O comando não usa o histórico nem baixa vídeo/áudio e preserva legendas existentes. Com Deno, troque `--js-runtimes node` por `--js-runtimes deno`. Com pip, use `python -m yt_dlp` no lugar de `uv run python -m yt_dlp`.
+
+---
+
 ### `ERROR: ffmpeg not found`
 
 **Causa**: FFmpeg não está instalado ou não está no PATH.  
@@ -175,8 +256,10 @@ Você pode:
 
 ### `ERROR: Video unavailable`
 
-**Causa**: o vídeo foi removido, é privado ou está bloqueado no seu país.  
+**Causa**: o YouTube informou que o vídeo está indisponível; a mensagem sozinha não confirma o motivo. Pode ter sido removido, ser privado ou estar bloqueado no seu país.
 **Solução**: habilite **"Continuar em erros"** no menu para que a playlist continue mesmo assim.
+
+`1 unavailable video is hidden` indica um item indisponível na playlist. `Finished downloading playlist` significa que o processamento terminou, mas não comprova que todos os vídeos e legendas foram baixados. O programa sinaliza erros ou avisos no encerramento.
 
 ---
 
@@ -218,7 +301,19 @@ pip install -e .
 ### Arquivo já existe / download não reinicia
 
 **Causa**: o programa mantém um arquivo `.download-archive.txt` dentro da pasta de destino para evitar redownload.  
-**Solução**: se quiser forçar o rebaixamento, apague o arquivo `.download-archive.txt` da pasta de destino.
+**Solução**: para tentar novamente apenas itens ausentes, rode o menu com a mesma pasta. Os itens registrados no histórico serão pulados. Não apague o histórico para recuperar somente legendas; use o comando da seção [Recuperar somente legendas que falharam](#recuperar-somente-legendas-que-falharam).
+
+### Forçar o download novamente
+
+O menu não possui uma opção de sobrescrita. Para baixar novamente mesmo que os arquivos existam, use o yt-dlp diretamente:
+
+```powershell
+uv run python -m yt_dlp --ignore-config --yes-playlist --force-overwrites --no-continue --js-runtimes node -f "bv*+ba/b" --merge-output-format mp4 --windows-filenames --ignore-errors -P "C:\Users\SeuNome\Downloads\SuaPlaylist" -o "%(playlist_index)03d - %(title)s [%(id)s].%(ext)s" "https://www.youtube.com/playlist?list=PLxxxxxxxx"
+```
+
+Substitua pasta e URL. Esse comando baixa vídeo e áudio novamente, sobrescreve os arquivos com os mesmos nomes e não usa nem altera `.download-archive.txt`. Se quiser preservar os arquivos anteriores, escolha outra pasta. Não rode junto com outro download para o mesmo destino.
+
+Para incluir legendas, acrescente `--write-subs --write-auto-subs --sub-langs "pt,pt-BR,en" --sub-format srt --sleep-requests 1 --sleep-subtitles 5`. Com Deno, troque `--js-runtimes node` por `--js-runtimes deno`. Para baixar só um vídeo, use uma URL sem `list=...`.
 
 ---
 
@@ -226,6 +321,8 @@ pip install -e .
 
 **Posso baixar um único vídeo em vez de uma playlist inteira?**  
 Sim. Cole a URL do vídeo normalmente — o programa detecta automaticamente se é vídeo único ou playlist.
+
+Se a URL contiver `&list=...`, o programa processa a playlist. Para baixar só o vídeo, remova esse parâmetro ou use `https://youtu.be/ID_DO_VIDEO`.
 
 **O programa vai redownload se eu rodar de novo?**  
 Não. O arquivo `.download-archive.txt` registra tudo que já foi baixado. Apenas novos vídeos serão baixados.
