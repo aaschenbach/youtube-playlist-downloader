@@ -9,7 +9,8 @@ import questionary
 from questionary import Style
 from yt_dlp import DownloadError
 
-from .downloader import DownloadConfig, download, fetch_info
+from .downloader import DownloadConfig, download, fetch_info, saved_session
+from .settings import friendly_error, data_dir, read_json, write_json, validate_cookie_file, redact
 from .ui import console, error, header, info, section, show_summary, success, warn
 
 # ─── Estilo do questionary ────────────────────────────────────────────────────
@@ -31,63 +32,9 @@ STYLE = Style(
 
 DEFAULT_OUTPUT = Path.home() / "Downloads" / "YouTube"
 
-_ERROR_HINTS: list[tuple[str, str]] = [
-    (
-        "ffmpeg",
-        "FFmpeg não encontrado.\n"
-        "  → Instale em https://ffmpeg.org/download.html e adicione ao PATH.\n"
-        "  → Windows: winget install ffmpeg\n"
-        "  → macOS: brew install ffmpeg\n"
-        "  → Linux: sudo apt install ffmpeg",
-    ),
-    (
-        "Sign in to confirm",
-        "O YouTube pediu verificação de login (anti-bot).\n"
-        "  → Exporte seus cookies com a extensão 'Get cookies.txt LOCALLY' do Chrome.\n"
-        "  → Salve como cookies.txt na pasta do projeto.\n"
-        "  → Adicione 'cookiefile: \"cookies.txt\"' em src/ytdl/downloader.py.",
-    ),
-    (
-        "Video unavailable",
-        "Vídeo indisponível (removido, privado ou bloqueado no seu país).\n"
-        "  → Se for uma playlist, habilite 'Continuar em erros' no menu.",
-    ),
-    (
-        "Private video",
-        "Vídeo privado — não é possível baixar sem acesso à conta do dono.\n"
-        "  → Se for uma playlist, habilite 'Continuar em erros' para pular e continuar.",
-    ),
-    (
-        "This video is not available",
-        "Vídeo não disponível na sua região.\n"
-        "  → Tente com uma VPN ou verifique se o conteúdo é acessível no seu país.",
-    ),
-    (
-        "HTTP Error 429",
-        "O YouTube bloqueou temporariamente as requisições (muitos downloads).\n"
-        "  → Aguarde alguns minutos e tente novamente.",
-    ),
-    (
-        "Unable to extract",
-        "Não foi possível extrair as informações do vídeo.\n"
-        "  → Verifique se a URL está correta e se o vídeo ainda existe.\n"
-        "  → Tente atualizar o yt-dlp: uv sync --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs\n"
-        "  → Com pip: python -m pip install -U 'yt-dlp[default,curl-cffi]'",
-    ),
-    (
-        "PermissionError",
-        "Sem permissão para salvar na pasta escolhida.\n"
-        "  → Escolha uma pasta diferente, como ~/Downloads/YouTube.",
-    ),
-]
-
-
 def _friendly_error(raw: str) -> str:
-    """Retorna dica amigável ou a mensagem original se não houver hint."""
-    for keyword, hint in _ERROR_HINTS:
-        if keyword.lower() in raw.lower():
-            return hint
-    return raw
+    """Explica falhas sem atribuir causas que não foram confirmadas."""
+    return friendly_error(raw)
 
 
 def ask(fn, *args, **kwargs):
@@ -171,7 +118,7 @@ def confirm_start(url: str, output_dir: Path, mode: str, subtitles: bool) -> boo
 
 # ─── Painel de informações ────────────────────────────────────────────────────
 
-def show_info_panel(url: str) -> None:
+def show_info_panel(url: str) -> bool:
     info("Buscando informações da URL… (pode levar alguns segundos)")
     try:
         meta = fetch_info(url)
@@ -179,11 +126,11 @@ def show_info_panel(url: str) -> None:
         msg = _friendly_error(str(exc))
         warn(f"Não foi possível buscar metadados:\n  {msg}")
         console.print()
-        return
+        return False
     except Exception as exc:
-        warn(f"Erro inesperado ao buscar metadados: {exc}")
+        warn(f"Não foi possível consultar informações: {redact(str(exc))}")
         console.print()
-        return
+        return False
 
     title = meta.get("title") or meta.get("webpage_url_basename") or "—"
     entries = meta.get("entries") or []
@@ -196,6 +143,7 @@ def show_info_panel(url: str) -> None:
     if count:
         console.print(f"  [bold]Vídeos:[/bold]   {count} na playlist")
     console.print()
+    return True
 
 
 # ─── Config ──────────────────────────────────────────────────────────────────
@@ -220,6 +168,7 @@ def build_config(
         audio_only=audio_only,
         subtitles=subtitles,
         continue_on_error=continue_on_error,
+        session=saved_session(),
     )
 
 
@@ -261,7 +210,9 @@ def post_download_menu(output_dir: Path) -> str:
 def run_once() -> bool:
     """Executa um ciclo completo. Retorna True se deve rodar de novo."""
     url = collect_url()
-    show_info_panel(url)
+    if show_info_panel(url) is False:
+        warn("Resolva a sessão pelo menu inicial ou tente mais tarde. O download não será iniciado.")
+        return True
     output_dir = collect_output_dir()
     mode = collect_mode()
     subtitles = collect_subtitles()
@@ -320,6 +271,20 @@ def main() -> None:
     header()
     while True:
         try:
+            action = ask(questionary.select, "O que deseja fazer?", choices=["Baixar", "Configurar sessão", "Sair"])
+            if action == "Sair":
+                break
+            if action == "Configurar sessão":
+                raw = ask(questionary.text, "Caminho do cookies.txt (vazio remove a sessão):").strip().strip('"')
+                try:
+                    cookie = str(validate_cookie_file(Path(raw))) if raw else ""
+                    preferences = read_json(data_dir() / "preferences.json")
+                    preferences.update(cookie_file=cookie, browser="Sem sessão", profile="")
+                    write_json(data_dir() / "preferences.json", preferences)
+                    success("Configuração salva. Consulta e download usarão a mesma sessão.")
+                except ValueError as exc:
+                    error(str(exc))
+                continue
             again = run_once()
         except KeyboardInterrupt:
             again = False

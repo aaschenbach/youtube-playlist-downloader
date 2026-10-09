@@ -13,8 +13,15 @@ build/
 downloads/
 *.download-archive.txt
 
-# uv
-uv.lock
+# Sessões e configurações privadas
+cookies*.txt
+*.cookies.txt
+preferences.json
+installation.json
+app.json
+
+# Artefatos de validação
+artifacts/
 
 # OS
 .DS_Store

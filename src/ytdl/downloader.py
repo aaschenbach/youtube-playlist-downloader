@@ -8,6 +8,9 @@ from shutil import which
 
 from yt_dlp import YoutubeDL
 
+from .engine import Session
+from .settings import data_dir, read_json
+
 
 @dataclass
 class DownloadConfig:
@@ -19,6 +22,8 @@ class DownloadConfig:
     audio_only: bool = False
     subtitles: bool = False
     extra_opts: dict = field(default_factory=dict)
+    session: Session = field(default_factory=Session)
+    playlist: bool = True
 
 
 @dataclass
@@ -44,6 +49,22 @@ def runtime_opts() -> dict:
     return {"js_runtimes": runtimes}
 
 
+def saved_session() -> Session:
+    preferences = read_json(data_dir() / "preferences.json")
+    cookie = preferences.get("cookie_file")
+    browser = {"Firefox": "firefox", "Chrome (avançado)": "chrome", "Edge (avançado)": "edge"}.get(preferences.get("browser"))
+    return Session(Path(cookie) if cookie else None, browser, preferences.get("profile", ""))
+
+
+def session_opts(session: Session) -> dict:
+    arguments = session.arguments()
+    if not arguments:
+        return {}
+    if session.cookie_file:
+        return {"cookiefile": arguments[1]}
+    return {"cookiesfrombrowser": (session.browser, session.profile or None, None, None)}
+
+
 def build_ydl_opts(cfg: DownloadConfig) -> dict:
     out_dir = cfg.output_dir
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -62,13 +83,17 @@ def build_ydl_opts(cfg: DownloadConfig) -> dict:
         "outtmpl": outtmpl,
         "merge_output_format": cfg.merge_format,
         "download_archive": str(out_dir / ".download-archive.txt"),
-        "noplaylist": False,
+        "noplaylist": not cfg.playlist,
         "ignoreerrors": cfg.continue_on_error,
         "windowsfilenames": True,
         "retries": 5,
         "concurrent_fragment_downloads": 4,
+        "sleep_interval": 5,
+        "max_sleep_interval": 10,
+        "sleep_interval_requests": 1,
         "postprocessors": postprocessors,
         **runtime_opts(),
+        **session_opts(cfg.session),
     }
 
     if cfg.subtitles:
@@ -77,7 +102,6 @@ def build_ydl_opts(cfg: DownloadConfig) -> dict:
             "writeautomaticsub": True,
             "subtitleslangs": ["pt", "pt-BR", "en"],
             "subtitlesformat": "srt",
-            "sleep_interval_requests": 1,
             "sleep_interval_subtitles": 5,
         })
 
@@ -85,9 +109,9 @@ def build_ydl_opts(cfg: DownloadConfig) -> dict:
     return opts
 
 
-def fetch_info(url: str) -> dict:
+def fetch_info(url: str, session: Session | None = None) -> dict:
     """Busca metadados sem baixar."""
-    with YoutubeDL({"quiet": True, "noplaylist": False, "extract_flat": "in_playlist", **runtime_opts()}) as ydl:
+    with YoutubeDL({"quiet": True, "noplaylist": False, "extract_flat": "in_playlist", "sleep_interval_requests": 1, **runtime_opts(), **session_opts(session or saved_session())}) as ydl:
         return ydl.extract_info(url, download=False) or {}
 
 

@@ -22,6 +22,9 @@ class DownloaderTests(unittest.TestCase):
             opts = build_ydl_opts(DownloadConfig("https://example.com", Path(folder)))
             self.assertEqual(opts["js_runtimes"], {"deno": {}})
             self.assertNotIn("sleep_interval_subtitles", opts)
+            self.assertEqual(opts["sleep_interval"], 5)
+            self.assertEqual(opts["max_sleep_interval"], 10)
+            self.assertEqual(opts["sleep_interval_requests"], 1)
             self.assertEqual(opts["download_archive"], str(Path(folder) / ".download-archive.txt"))
 
     def test_metadata_uses_same_runtime(self):
@@ -29,6 +32,7 @@ class DownloaderTests(unittest.TestCase):
             engine.return_value.__enter__.return_value.extract_info.return_value = {"title": "Example"}
             self.assertEqual(fetch_info("https://example.com"), {"title": "Example"})
             self.assertIn("node", engine.call_args.args[0]["js_runtimes"])
+            self.assertEqual(engine.call_args.args[0]["sleep_interval_requests"], 1)
 
     def test_ignored_errors_and_subtitle_warnings_are_reported(self):
         def simulate(ydl, urls):

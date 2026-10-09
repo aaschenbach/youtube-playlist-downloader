@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "version": "2.0.4",
+  "tools": {
+    "yt-dlp": {
+      "version": "2026.08.19",
+      "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.08.19/yt-dlp.exe",
+      "sha256": "66674953fe251b89f4d08c5f0e35e0728679bd67ab3d7d05c0562af101dd3e7a",
+      "archive": false
+    },
+    "ffmpeg": {
+      "version": "autobuild-2026-10-08-19-47",
+      "url": "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/autobuild-2026-10-08-19-47/ffmpeg-N-127256-g538d10d187-win64-gpl.zip",
+      "sha256": "a207c50803891dff744d38196e8fc8c3e1782de11a80420941d062fd243d8605",
+      "archive": true
+    },
+    "node": {
+      "version": "v24.21.0",
+      "url": "https://nodejs.org/dist/v24.21.0/node-v24.21.0-win-x64.zip",
+      "sha256": "158f7685b44de51f6c0df1d153526cbcd3e1bc739a8dfc607721cef75de9e541",
+      "archive": true
+    }
+  }
+}

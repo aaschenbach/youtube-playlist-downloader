@@ -1,360 +1,91 @@
-# ytdl — YouTube Downloader Interativo
+# YouTube Downloader para Windows
 
-Baixe vídeos e playlists do YouTube com uma interface CLI amigável e interativa.  
-Suporta vídeo (MP4), áudio (MP3), legendas automáticas e retoma downloads já iniciados.
+Baixe vídeos, playlists, áudio MP3 e legendas com uma janela no seu computador. A versão para usuários funciona no Windows 10/11 de 64 bits.
 
-Este projeto usa a biblioteca [yt-dlp](https://github.com/yt-dlp/yt-dlp) para extrair metadados, selecionar formatos e baixar vídeos, áudio e legendas. O `ytdl` fornece o menu interativo e configura o fluxo de download. Créditos aos mantenedores e colaboradores do yt-dlp, cujo código é disponibilizado sob a [Unlicense](https://github.com/yt-dlp/yt-dlp/blob/master/LICENSE). As demais dependências possuem suas próprias licenças.
+## Baixar e abrir
 
----
+1. Abra a página de [Releases](https://github.com/aaschenbach/youtube-playlist-downloader/releases).
+2. Baixe o **YouTubeDownloader-2.0.4-Windows-x64.zip** da versão disponível. Os arquivos **Source code** são para desenvolvimento.
+3. Extraia **todo** o ZIP e abra **YouTube Downloader.exe** na pasta extraída.
 
-## Índice
+A primeira abertura prepara as ferramentas com internet e mostra cada etapa. Não precisa instalar Python, Git, Node ou FFmpeg, abrir terminal, alterar PATH ou ter acesso de administrador. Mantenha o executável junto da pasta `_internal`.
 
-1. [Requisitos](#requisitos)
-2. [Instalação](#instalação)
-3. [Como usar](#como-usar)
-4. [Guia do menu interativo](#guia-do-menu-interativo)
-5. [Erros comuns e como resolver](#erros-comuns-e-como-resolver)
-6. [Perguntas frequentes](#perguntas-frequentes)
+**Disponibilidade:** o pacote é gerado pelo workflow do projeto. Ele estará disponível para baixar depois que o mantenedor publicar ZIP e `manifest.json` em uma Release. Baixar o código pelo botão Code não substitui essa publicação.
 
----
+## Baixar e retomar
 
-## Requisitos
+Cole o link, escolha a pasta, selecione MP4 ou MP3 e clique em **Baixar**. Legendas tenta obter português e inglês quando disponíveis. A pasta inicial é `Downloads/YouTube`. Para um link que contenha vídeo e playlist, o aplicativo pergunta qual deseja baixar.
 
-| Requisito | Versão mínima | Para que serve |
-|-----------|--------------|----------------|
-| Python    | 3.11         | Rodar o programa |
-| FFmpeg    | qualquer     | Mesclar vídeo + áudio em MP4 |
-| Deno ou Node.js | Deno 2.3+ / Node 22+ | Resolver desafios JavaScript do YouTube |
-| uv *(opcional)* | qualquer | Gerenciar dependências de forma mais rápida |
+Arquivos de playlist recebem numeração com pelo menos três dígitos: `001 -`, `002 -`, `003 -`.
 
-### Instalar o Python
+A janela acompanha três níveis: **playlist**, **vídeo atual** e **arquivo atual**. O vídeo mostra as etapas aplicáveis (imagem, áudio, legendas e finalização); o arquivo mostra sua identificação, percentual, bytes, velocidade e tempo estimado. Chegar a 100% em um arquivo não significa que o vídeo terminou: a janela informa o que falta, incluindo áudio e junção. A conclusão aparece explicitamente com a pasta de destino. Gravações de lives encerradas são aceitas; transmissões ativas ou agendadas não são gravadas.
 
-- **Windows**: baixe em <https://python.org/downloads> e marque **"Add Python to PATH"** na instalação.
-- **macOS**: `brew install python`
-- **Linux (Debian/Ubuntu)**: `sudo apt install python3 python3-pip`
+As pausas de 5–10 segundos antes dos downloads aparecem com contagem regressiva baseada na duração informada pelo motor. Percentuais e estimativas pertencem ao arquivo atual e só aparecem quando há dados; não há percentual artificial para o vídeo inteiro. Os intervalos também se aplicam à CLI e não garantem evitar restrições do YouTube.
 
-### Instalar o FFmpeg
+Para playlists, uma segunda barra acompanha a lista toda: vídeo atual, quantidade processada e quantos faltam. Concluídos, já baixados e falhas são contados separadamente. O percentual representa itens processados, não o tamanho dos arquivos; uma playlist totalmente processada ainda pode conter falhas. Se o total não for conhecido, o aplicativo mostra a contagem sem inventar percentual. Ao cancelar, o acompanhamento mantém o avanço real até a interrupção.
 
-- **Windows**: baixe o build em <https://ffmpeg.org/download.html>, extraia e adicione a pasta `bin` ao PATH.
-  - Ou via winget: `winget install ffmpeg`
-  - Ou via choco: `choco install ffmpeg`
-- **macOS**: `brew install ffmpeg`
-- **Linux**: `sudo apt install ffmpeg`
+Use **Cancelar** e aguarde antes de fechar. **Tentar novamente / retomar** preserva arquivos parciais e o histórico `.download-archive.txt`. A retomada consulta a tarefa e pula os vídeos registrados no histórico.
 
-Verifique se está instalado: `ffmpeg -version`
+**Recuperar legendas** consulta os itens sem usar o histórico de vídeos, sem baixar áudio/vídeo e preservando legendas existentes. Alguns vídeos não possuem legendas; confira os arquivos e os avisos.
 
-### Instalar um runtime JavaScript
+## Quando o YouTube pedir verificação
 
-Instale [Deno](https://docs.deno.com/runtime/getting_started/installation/) (recomendado pelo yt-dlp) ou [Node.js](https://nodejs.org/en/download/), disponível no PATH. No Windows, uma alternativa é:
+Abra o vídeo no navegador e confirme que consegue assisti-lo. Na aba **Sessão**, clique em **Selecionar cookies.txt** e escolha um arquivo de cookies exportado do YouTube. Se ainda não tiver o arquivo, consulte **Ajuda com cookies**. Ele pode estar em qualquer pasta. Cole o link e clique em **Testar sessão**.
 
-```powershell
-winget install --id OpenJS.NodeJS.LTS -e
-```
+Consulta e download usam o mesmo arquivo e Node. O teste confirma somente aquela consulta; o YouTube ainda pode restringir o download.
 
-Reabra o terminal e verifique com `node --version` (22 ou superior) ou `deno --version` (2.3 ou superior). O programa habilita automaticamente o Node encontrado no PATH e mantém o Deno habilitado.
+Para obter um novo arquivo, clique em **Ajuda com cookies** e siga as [instruções oficiais de exportação](https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies). A ajuda explica a exportação de `youtube.com` em janela privada. Cookies dão acesso à sua sessão: mantenha-os no computador e não os envie ao suporte. Usar uma conta com yt-dlp pode resultar em restrições da conta.
 
-As dependências do projeto incluem `yt-dlp-ejs` para resolver os desafios e `curl-cffi` para requisições com características de navegador. Isso não garante que o YouTube aceite todas as requisições. Consulte o [guia oficial de EJS](https://github.com/yt-dlp/yt-dlp/wiki/EJS).
+Firefox e seus perfis são alternativas opcionais. Chrome/Edge ficam nas opções avançadas: **acesso negado** significa falha na leitura do navegador, não rejeição de um arquivo escolhido manualmente.
 
-### Instalar o uv *(recomendado)*
+**Remover sessão** apaga a configuração do aplicativo e preserva o arquivo original. O arquivo selecionado tem preferência sobre leitura do navegador.
 
-```bash
-# Windows (PowerShell)
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+Em **HTTP 429**, aguarde antes de tentar novamente. O aplicativo interrompe uma playlist bloqueada, preserva a tarefa e evita insistir automaticamente. Se uma sessão válida continuar recusada, a janela informa isso. Cookies e atualização não garantem superar todo bloqueio.
 
-# macOS / Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
+## Atualizar e reparar
 
----
+O aplicativo verifica versões publicadas ao abrir. Na aba **Atualização**, use **Verificar atualização** e **Preparar / atualizar**.
 
-## Instalação
+A nova versão é preparada separadamente, verifica SHA-256 e testa ferramentas antes de ativá-las. Bloqueios temporários de arquivos pelo Windows têm espera limitada; downloads já verificados são reutilizados nas próximas tentativas. Falhas preservam a versão anterior. Não há atualização durante downloads. Use **Restaurar ferramentas anteriores** ou **Restaurar aplicativo anterior** para voltar à versão disponível anteriormente.
 
-### Com uv *(recomendado)*
+Ferramentas e preferências ficam em `%LOCALAPPDATA%\YouTubeDownloader`. Cookies permanecem no local escolhido. O programa não envia cookies a servidores do projeto; yt-dlp usa a sessão para acessar o YouTube.
 
-No Windows, abra o PowerShell e execute:
+Um ZIP antigo pode abrir o aplicativo atualizado na pasta local. Atualizações vêm de Releases publicadas, sem acompanhar branches de desenvolvimento ou instalar dependências Python no computador do usuário.
+
+## Pedir ajuda
+
+Consulte **Detalhes** e descreva a etapa que falhou em uma [issue](https://github.com/aaschenbach/youtube-playlist-downloader/issues). Não envie cookies, senhas ou sessões. Os detalhes removem parâmetros das URLs extraídas e valores identificados como credenciais.
+
+## Desenvolvimento
+
+Este caminho é para trabalhar no código; usuários finais devem usar o ZIP.
 
 ```powershell
 git clone https://github.com/aaschenbach/youtube-playlist-downloader.git
 cd youtube-playlist-downloader
-uv sync
-uv run ytdl
+uv sync --extra build
+uv run --extra build ytdl-window
 ```
 
-Se o projeto já estiver clonado, entre na pasta existente e execute apenas `uv sync` e `uv run ytdl`. **Com `uv run ytdl`, não é necessário ativar a `.venv`**: o uv executa o programa dentro dela.
-
-### Com uv pip e ativação da .venv (PowerShell)
-
-Esta é uma alternativa completa ao fluxo acima. Na pasta do projeto, crie a `.venv` apenas se ela ainda não existir:
+A janela por código usa as mesmas ferramentas gerenciadas que o executável. A CLI técnica continua em `uv run ytdl`, com configuração de cookies pelo menu e preferências compartilhadas. A CLI usa a biblioteca Python yt-dlp e ferramentas no PATH; a distribuição para usuários finais é a janela.
 
 ```powershell
-uv venv
-uv pip install -e .
-.\.venv\Scripts\Activate.ps1
-ytdl
+uv run --extra build python -m unittest discover -s tests -v
+uv run --extra build python scripts/build_windows.py
 ```
 
-`uv pip` instala no ambiente do projeto mesmo sem ativação. Para executar `ytdl` diretamente pelo nome, ative a `.venv` antes. Repita a ativação sempre que abrir um novo terminal. Para sair do ambiente, execute `deactivate`.
+O build gera ZIP, `dist/manifest.json` e `dist/SHA256SUMS.txt`. O workflow Windows testa e guarda esses arquivos como artifact, sem publicar automaticamente.
 
-Para este projeto, prefira `uv sync` e `uv run ytdl`. `uv pip install` instala diretamente no ambiente e não atualiza o lock; um `uv sync` ou `uv run` posterior pode desfazer instalações avulsas.
-
-### Com pip (Python com pip instalado)
-
-No PowerShell, com um Python que tenha pip instalado:
+Para atualizar as ferramentas verificadas antes de um novo build:
 
 ```powershell
-git clone https://github.com/aaschenbach/youtube-playlist-downloader.git
-cd youtube-playlist-downloader
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -e .
-ytdl
+uv run --extra build python scripts/resolve_tools.py
 ```
 
-No macOS/Linux, a ativação é `source .venv/bin/activate`.
+Esse comando altera `src/ytdl/tools-manifest.json`: revisar, testar e versionar a mudança. O manifesto usa FFmpeg datado, Node LTS compatível e uma Release oficial do yt-dlp, com URLs de versões específicas. O aplicativo ignora configurações externas de yt-dlp para manter escolhas explícitas.
 
----
+Antes de publicar, siga [a validação Windows](docs/VALIDACAO-WINDOWS.md). Testes simulados não comprovam aceitação de sessões reais; testes com cookies pessoais ficam fora do CI.
 
-## Como usar
+## Créditos
 
-Execute os comandos na pasta do projeto. Escolha uma das opções:
-
-### Rodar com uv, sem ativação manual
-
-```powershell
-uv run ytdl
-```
-
-### Rodar diretamente no PowerShell, ativando a .venv
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-ytdl
-```
-
-Essa ativação é o passo necessário antes de chamar apenas `ytdl`. No Prompt de Comando (cmd), use `.venv\Scripts\activate.bat`; no macOS/Linux, use `source .venv/bin/activate`.
-
-Se preferir executar sem ativar e sem sincronizar dependências, no PowerShell use:
-
-```powershell
-.\.venv\Scripts\ytdl.exe
-```
-
-O programa abre um menu interativo e guia você passo a passo. Não é necessário nenhum argumento na linha de comando.
-
----
-
-## Guia do menu interativo
-
-### Passo 1 — URL
-
-Cole a URL de um **vídeo único** ou de uma **playlist**. Exemplos válidos:
-
-```
-https://www.youtube.com/watch?v=dQw4w9WgXcQ
-https://www.youtube.com/playlist?list=PLxxxxxxxx
-https://youtu.be/dQw4w9WgXcQ
-```
-
-> Pressione **Enter** para confirmar ou **Ctrl+C** para cancelar a qualquer momento.
-
-### Passo 2 — Pasta de destino
-
-O padrão é `~/Downloads/YouTube`. Você pode digitar qualquer caminho absoluto ou relativo, por exemplo:
-
-```
-C:\Users\SeuNome\Musicas
-/home/seunome/videos
-```
-
-A pasta é criada automaticamente se não existir.
-
-### Passo 3 — Modo de download
-
-| Opção | O que faz |
-|-------|-----------|
-| 🎬 Vídeo + áudio (MP4) | Baixa a melhor qualidade de vídeo e áudio e mescla em MP4 |
-| 🎵 Somente áudio (MP3) | Extrai apenas o áudio em MP3 (192 kbps) |
-| 🎬 Melhor qualidade (auto) | Igual ao primeiro; alias para quem não quer pensar |
-
-### Passo 4 — Legendas
-
-Se você responder **sim**, o programa tentará baixar legendas em português (PT / PT-BR) e inglês (EN) no formato `.srt`, quando disponíveis. Legendas automáticas geradas pelo YouTube também são incluídas.
-
-### Passo 5 — Comportamento em erros
-
-- **Sim (padrão)**: se um vídeo da playlist estiver indisponível, o programa pula e continua.
-- **Não**: o programa para ao encontrar qualquer erro.
-
-### Passo 6 — Confirmação
-
-Um resumo é exibido antes do download iniciar. Revise e confirme ou cancele.
-
-### Após o download
-
-Você pode:
-- **Baixar outra URL** — reinicia o menu
-- **Abrir a pasta de destino** — abre o gerenciador de arquivos diretamente
-- **Sair**
-
----
-
-## Erros comuns e como resolver
-
-### Atualizar a versão do projeto
-
-Na pasta do repositório:
-
-```powershell
-git pull --ff-only
-uv sync
-```
-
-Se o Git apontar conflito ou alterações locais, revise essas alterações antes de continuar. Para instalações via `uv pip`, use `uv pip install -e .` após atualizar o código; com pip tradicional, use `python -m pip install -e .`.
-
-### Atualizar o yt-dlp e as dependências
-
-O YouTube muda com frequência. Antes de investigar uma falha de extração, atualize na pasta do projeto:
-
-```powershell
-# Com uv (uv sync sozinho mantém as versões do lock existente)
-uv sync --upgrade-package yt-dlp --upgrade-package yt-dlp-ejs
-
-# Alternativa: instalação direta no ambiente do uv, sem atualizar o lock
-uv pip install --upgrade "yt-dlp[default,curl-cffi]"
-
-# Com pip tradicional / ambiente ativado
-python -m pip install -U "yt-dlp[default,curl-cffi]"
-```
-
-### `No supported JavaScript runtime could be found`
-
-**Causa**: nenhum runtime compatível está disponível para o yt-dlp. O download pode continuar, mas alguns formatos podem faltar.
-**Solução**: instale Deno ou Node conforme [Requisitos](#requisitos), reabra o terminal e atualize as dependências. Instalar apenas o pacote Python `yt-dlp-ejs` não instala o runtime.
-
-### `HTTP Error 429: Too Many Requests`
-
-**Causa**: o YouTube está limitando requisições. Pode afetar metadados ou legendas mesmo quando vídeo e áudio são baixados normalmente.
-**Solução**: aguarde antes de tentar novamente e evite downloads simultâneos. Com legendas habilitadas, o programa espera 1 segundo entre requisições de extração e 5 segundos antes de cada legenda; essas pausas reduzem a frequência, mas não garantem eliminar o bloqueio. Veja a [FAQ oficial sobre HTTP 429](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#http-error-429-too-many-requests-or-402-payment-required).
-
-`Unable to download video subtitles` significa que aquela legenda falhou. A linha `Writing video subtitles to` anuncia uma tentativa e não comprova que o arquivo foi baixado.
-
-### `no impersonate target is available`
-
-**Causa**: falta suporte para requisições com características de navegador.
-**Solução**: rode `uv sync` ou `python -m pip install -e .` para instalar as dependências atuais, que incluem `curl-cffi`. Essa dependência não elimina necessariamente o HTTP 429. Veja a [documentação oficial sobre impersonation](https://github.com/yt-dlp/yt-dlp#impersonation).
-
-### Recuperar somente legendas que falharam
-
-Vídeos concluídos entram em `.download-archive.txt` mesmo quando alguma legenda falha. Rodar novamente o menu na mesma pasta pode pular esses vídeos e suas legendas. Preserve o histórico e use o yt-dlp diretamente para tentar só as legendas, depois de aguardar o bloqueio passar:
-
-```powershell
-uv run python -m yt_dlp --ignore-config --skip-download --write-subs --write-auto-subs --sub-langs "pt,pt-BR,en" --sub-format srt --sleep-requests 1 --sleep-subtitles 5 --js-runtimes node --ignore-errors --no-overwrites -P "C:\Users\SeuNome\Downloads\SuaPlaylist" -o "%(playlist_index)03d - %(title)s [%(id)s].%(ext)s" "https://www.youtube.com/playlist?list=PLxxxxxxxx"
-```
-
-Substitua a pasta e a URL pelos mesmos valores do download original. O comando não usa o histórico nem baixa vídeo/áudio e preserva legendas existentes. Com Deno, troque `--js-runtimes node` por `--js-runtimes deno`. Com pip, use `python -m yt_dlp` no lugar de `uv run python -m yt_dlp`.
-
-Se instalou ou atualizou via `uv pip`, substitua `uv run python` por `.\.venv\Scripts\python.exe` para usar exatamente as versões instaladas, sem sincronizar o lock. A mesma substituição vale para o comando de download forçado abaixo.
-
----
-
-### `ERROR: ffmpeg not found`
-
-**Causa**: FFmpeg não está instalado ou não está no PATH.  
-**Solução**: instale conforme descrito em [Requisitos](#requisitos) e reinicie o terminal.
-
----
-
-### `ERROR: Sign in to confirm you're not a bot`
-
-**Causa**: o YouTube detectou muitas requisições ou está pedindo login.  
-**Solução**:
-1. Exporte os cookies do seu navegador com a extensão [Get cookies.txt LOCALLY](https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc).
-2. Salve o arquivo como `cookies.txt` na pasta do projeto.
-3. Adicione a opção no código editando `src/ytdl/downloader.py`, linha `opts`, adicionando:
-   ```python
-   "cookiefile": "cookies.txt",
-   ```
-
----
-
-### `ERROR: Video unavailable`
-
-**Causa**: o YouTube informou que o vídeo está indisponível; a mensagem sozinha não confirma o motivo. Pode ter sido removido, ser privado ou estar bloqueado no seu país.
-**Solução**: habilite **"Continuar em erros"** no menu para que a playlist continue mesmo assim.
-
-`1 unavailable video is hidden` indica um item indisponível na playlist. `Finished downloading playlist` significa que o processamento terminou, mas não comprova que todos os vídeos e legendas foram baixados. O programa sinaliza erros ou avisos no encerramento.
-
----
-
-### `ModuleNotFoundError: No module named 'ytdl'`
-
-**Causa**: o pacote não foi instalado corretamente.  
-**Solução**:
-```powershell
-# Com uv
-uv sync
-
-# Com uv pip
-uv pip install -e .
-
-# Com pip tradicional, após ativar a .venv
-python -m pip install -e .
-```
-
----
-
-### `command not found: ytdl` / `ytdl não é reconhecido`
-
-**Causa**: o script de entrada não está no PATH.  
-**Solução**: execute `uv run ytdl` na pasta do projeto. Se quiser chamar apenas `ytdl`, execute antes `.\.venv\Scripts\Activate.ps1` no PowerShell. Se o erro continuar, reinstale o projeto conforme a seção [Instalação](#instalação).
-
----
-
-### `PermissionError` ao salvar arquivos
-
-**Causa**: a pasta de destino não tem permissão de escrita.  
-**Solução**: escolha uma pasta diferente (ex.: `~/Downloads/YouTube`) ou corrija as permissões da pasta.
-
----
-
-### Download muito lento
-
-**Causa**: rede, ou o YouTube limitando a velocidade.  
-**Solução**: o programa já usa 4 fragmentos em paralelo. Se ainda estiver lento, aguarde — é uma limitação do servidor.
-
----
-
-### Arquivo já existe / download não reinicia
-
-**Causa**: o programa mantém um arquivo `.download-archive.txt` dentro da pasta de destino para evitar redownload.  
-**Solução**: para tentar novamente apenas itens ausentes, rode o menu com a mesma pasta. Os itens registrados no histórico serão pulados. Não apague o histórico para recuperar somente legendas; use o comando da seção [Recuperar somente legendas que falharam](#recuperar-somente-legendas-que-falharam).
-
-### Forçar o download novamente
-
-O menu não possui uma opção de sobrescrita. Para baixar novamente mesmo que os arquivos existam, use o yt-dlp diretamente:
-
-```powershell
-uv run python -m yt_dlp --ignore-config --yes-playlist --force-overwrites --no-continue --js-runtimes node -f "bv*+ba/b" --merge-output-format mp4 --windows-filenames --ignore-errors -P "C:\Users\SeuNome\Downloads\SuaPlaylist" -o "%(playlist_index)03d - %(title)s [%(id)s].%(ext)s" "https://www.youtube.com/playlist?list=PLxxxxxxxx"
-```
-
-Substitua pasta e URL. Esse comando baixa vídeo e áudio novamente, sobrescreve os arquivos com os mesmos nomes e não usa nem altera `.download-archive.txt`. Se quiser preservar os arquivos anteriores, escolha outra pasta. Não rode junto com outro download para o mesmo destino.
-
-Para incluir legendas, acrescente `--write-subs --write-auto-subs --sub-langs "pt,pt-BR,en" --sub-format srt --sleep-requests 1 --sleep-subtitles 5`. Com Deno, troque `--js-runtimes node` por `--js-runtimes deno`. Para baixar só um vídeo, use uma URL sem `list=...`.
-
----
-
-## Perguntas frequentes
-
-**Posso baixar um único vídeo em vez de uma playlist inteira?**  
-Sim. Cole a URL do vídeo normalmente — o programa detecta automaticamente se é vídeo único ou playlist.
-
-Se a URL contiver `&list=...`, o programa processa a playlist. Para baixar só o vídeo, remova esse parâmetro ou use `https://youtu.be/ID_DO_VIDEO`.
-
-**O programa vai redownload se eu rodar de novo?**  
-Não. O arquivo `.download-archive.txt` registra tudo que já foi baixado. Apenas novos vídeos serão baixados.
-
-**Posso usar no macOS / Linux?**  
-Sim. O programa é multiplataforma.
-
-**A opção de abrir a pasta funciona em todos os sistemas?**  
-Sim: usa `os.startfile` no Windows, `open` no macOS e `xdg-open` no Linux.
+Usa [yt-dlp](https://github.com/yt-dlp/yt-dlp), [Node.js](https://nodejs.org/) e [FFmpeg](https://ffmpeg.org/). Consulte [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Não é afiliado ao YouTube ou Google.

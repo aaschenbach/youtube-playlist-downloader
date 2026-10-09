@@ -1,0 +1,23 @@
+YouTube Downloader para Windows 10/11 (64 bits)
+
+1. Extraia TODO o ZIP para uma pasta do seu computador.
+2. Abra YouTube Downloader.exe dentro da pasta extraída.
+3. Aguarde a preparação inicial, cole o link e clique em Baixar.
+
+Não é necessário instalar Python, Git, FFmpeg ou Node manualmente.
+A primeira preparação precisa de internet e mostra cada etapa.
+As ferramentas e preferências ficam na pasta local do usuário.
+
+Se o YouTube pedir uma verificação, abra a aba Sessão.
+Clique em Selecionar cookies.txt e escolha um arquivo exportado do YouTube.
+Se ainda não tiver o arquivo, consulte Ajuda com cookies.
+Depois clique em Testar sessão. Não precisa editar código.
+Não compartilhe seu arquivo de cookies com outras pessoas.
+
+Na aba Atualização, use Verificar atualização e Preparar / atualizar.
+Se a internet estiver indisponível, a instalação existente será preservada.
+
+Use Cancelar antes de fechar um download. Retomar preserva o histórico
+e os arquivos parciais. Gravação de lives em andamento não é suportada.
+
+Ajuda e código: https://github.com/aaschenbach/youtube-playlist-downloader
