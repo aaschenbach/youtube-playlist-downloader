@@ -850,6 +850,7 @@ name = "ytdl"
 version = "2.0.4"
 source = { editable = "." }
 dependencies = [
+    { name = "pyinstaller" },
     { name = "questionary" },
     { name = "rich" },
     { name = "yt-dlp", extra = ["curl-cffi", "default"] },
@@ -862,6 +863,7 @@ build = [
 
 [package.metadata]
 requires-dist = [
+    { name = "pyinstaller", specifier = ">=6.22.3" },
     { name = "pyinstaller", marker = "extra == 'build'", specifier = ">=6.16,<7" },
     { name = "questionary", specifier = ">=2.0.0" },
     { name = "rich", specifier = ">=13.0.0" },
