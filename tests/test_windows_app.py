@@ -172,12 +172,12 @@ class EngineTests(unittest.TestCase):
     def test_engine_uses_archive_for_chosen_format(self):
         engine = FakeEngine(self.tools, [])
         engine.download(self.task)
-        self.assertEqual(engine.calls[-1][engine.calls[-1].index("--download-archive") + 1],
-                         str(self.folder / ".download-archive-mp4.txt"))
+        self.assertEqual(Path(engine.calls[-1][engine.calls[-1].index("--download-archive") + 1]).resolve(),
+                         (self.folder / ".download-archive-mp4.txt").resolve())
         self.task.audio = True
         engine.download(self.task)
-        self.assertEqual(engine.calls[-1][engine.calls[-1].index("--download-archive") + 1],
-                         str(self.folder / ".download-archive-mp3.txt"))
+        self.assertEqual(Path(engine.calls[-1][engine.calls[-1].index("--download-archive") + 1]).resolve(),
+                         (self.folder / ".download-archive-mp3.txt").resolve())
 
     def test_postprocessing_failure_is_not_counted_as_complete(self):
         engine = FakeEngine(self.tools, ['YTDL_ITEM:"abc"', "ERROR: Conversion failed", 'YTDL_DONE:"abc"'])
@@ -395,11 +395,11 @@ class InstallationTests(unittest.TestCase):
             root = Path(temporary)
             installer = Installation(root)
             def probe(path, argument, emit):
-                self.assertTrue(path.resolve().is_relative_to(root / "tools"))
+                self.assertTrue(path.resolve().is_relative_to((root / "tools").resolve()))
                 return "test"
             with patch("ytdl.installation.download_asset", fake_download), patch("ytdl.installation.executable_version", probe), patch.object(Path, "replace", forbid_directory_move):
                 tools = installer.install(manifest)
-                self.assertTrue(tools.ffmpeg_dir.is_relative_to(root / "tools"))
+                self.assertTrue(tools.ffmpeg_dir.resolve().is_relative_to((root / "tools").resolve()))
                 with patch("ytdl.installation.download_asset", side_effect=AssertionError("download repetido")):
                     installer.install(manifest)
             self.assertTrue(installer.tools().ytdlp.is_file())
