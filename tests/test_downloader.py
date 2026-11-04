@@ -25,7 +25,7 @@ class DownloaderTests(unittest.TestCase):
             self.assertEqual(opts["sleep_interval"], 5)
             self.assertEqual(opts["max_sleep_interval"], 10)
             self.assertEqual(opts["sleep_interval_requests"], 1)
-            self.assertEqual(opts["download_archive"], str(Path(folder) / ".download-archive.txt"))
+            self.assertEqual(opts["download_archive"], str(Path(folder) / ".download-archive-mp4.txt"))
 
     def test_metadata_uses_same_runtime(self):
         with patch("ytdl.downloader.which", return_value="node.exe"), patch("ytdl.downloader.YoutubeDL") as engine:

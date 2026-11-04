@@ -1,6 +1,6 @@
 [project]
 name = "ytdl"
-version = "2.0.4"
+version = "2.0.5"
 description = "Downloader interativo de vídeos e playlists do YouTube"
 readme = "README.md"
 authors = [

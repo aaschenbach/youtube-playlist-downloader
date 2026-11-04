@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlsplit, urlunsplit
 
 APP_NAME = "YouTubeDownloader"
-VERSION = "2.0.4"
+VERSION = "2.0.5"
 REPOSITORY = "aaschenbach/youtube-playlist-downloader"
 
 

@@ -12,12 +12,13 @@ import tkinter as tk
 import webbrowser
 from dataclasses import replace
 from pathlib import Path
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox, simpledialog, ttk
 from urllib.parse import parse_qs, urlsplit
 
 from .engine import Cancelled, Engine, Session, Task
 from .installation import Installation, bundled_manifest, executable_version, latest_manifest
 from .playlist_progress import PlaylistProgress
+from .saved_downloads import MODES, load as load_saved, make as make_saved, save as save_saved
 from .video_progress import VideoProgress
 from .settings import VERSION, data_dir, friendly_error, read_json, redact, validate_cookie_file, validate_url, write_json
 
@@ -61,6 +62,10 @@ class Application:
         self.video_progress = VideoProgress()
         self.wait_until = None
         self.preferences = read_json(self.installation.root / "preferences.json")
+        self.saved_path = self.installation.root / "saved-downloads.json"
+        self.saved_downloads = load_saved(self.saved_path)
+        self.saved_name = tk.StringVar()
+        self.selected_saved_id = None
         self.url = tk.StringVar()
         self.output = tk.StringVar(value=self.preferences.get("output", str(Path.home() / "Downloads" / "YouTube")))
         self.mode = tk.StringVar(value=self.preferences.get("mode", "MP4 — vídeo e áudio"))
@@ -105,13 +110,27 @@ class Application:
         frame.columnconfigure(0, weight=1)
         ttk.Label(frame, text="YouTube Downloader", style="Title.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Label(frame, text="Vídeos, playlists e áudio no seu computador.").grid(row=1, column=0, sticky="w", pady=(0, 16))
-        ttk.Label(frame, text="Link do vídeo ou da playlist").grid(row=2, column=0, sticky="w")
+        saved = ttk.Frame(frame)
+        saved.grid(row=2, column=0, sticky="ew", pady=(0, 12))
+        saved.columnconfigure(0, weight=1)
+        ttk.Label(saved, text="Downloads salvos").grid(row=0, column=0, sticky="w")
+        self.saved_box = ttk.Combobox(saved, textvariable=self.saved_name, state="readonly")
+        self.saved_box.grid(row=1, column=0, sticky="ew", pady=4)
+        self.saved_box.bind("<<ComboboxSelected>>", self.load_selected_download)
+        self.refresh_saved_downloads()
+        self.save_new_button = ttk.Button(saved, text="Salvar como novo", command=self.save_new_download)
+        self.save_new_button.grid(row=1, column=1, padx=(8, 0))
+        self.update_saved_button = ttk.Button(saved, text="Atualizar salvo", command=self.update_saved_download)
+        self.update_saved_button.grid(row=1, column=2, padx=(8, 0))
+        self.delete_saved_button = ttk.Button(saved, text="Excluir salvo", command=self.delete_saved_download)
+        self.delete_saved_button.grid(row=1, column=3, padx=(8, 0))
+        ttk.Label(frame, text="Link do vídeo ou da playlist").grid(row=4, column=0, sticky="w")
         self.url_entry = ttk.Entry(frame, textvariable=self.url)
-        self.url_entry.grid(row=3, column=0, sticky="ew", pady=(4, 12))
+        self.url_entry.grid(row=5, column=0, sticky="ew", pady=(4, 12))
         self.url_entry.bind("<Return>", lambda event: self.start_download())
         self.url_entry.focus_set()
         destination = ttk.Frame(frame)
-        destination.grid(row=4, column=0, sticky="ew")
+        destination.grid(row=6, column=0, sticky="ew")
         destination.columnconfigure(0, weight=1)
         ttk.Label(destination, text="Salvar em").grid(row=0, column=0, sticky="w")
         self.output_entry = ttk.Entry(destination, textvariable=self.output)
@@ -119,26 +138,30 @@ class Application:
         self.choose_button = ttk.Button(destination, text="Escolher pasta", command=self.choose_output)
         self.choose_button.grid(row=1, column=1, padx=(8, 0))
         options = ttk.Frame(frame)
-        options.grid(row=5, column=0, sticky="ew", pady=10)
-        self.mode_box = ttk.Combobox(options, textvariable=self.mode, values=["MP4 — vídeo e áudio", "MP3 — somente áudio"], state="readonly", width=27)
+        options.grid(row=7, column=0, sticky="ew", pady=10)
+        self.mode_box = ttk.Combobox(options, textvariable=self.mode, values=MODES, state="readonly", width=27)
         self.mode_box.pack(side="left")
+        self.mode_box.bind("<<ComboboxSelected>>", lambda event: self.update_mode_indicator())
+        self.mode_indicator = tk.Label(options, font=("Segoe UI", 10, "bold"), padx=10, pady=5)
+        self.mode_indicator.pack(side="left", padx=(8, 0))
+        self.update_mode_indicator()
         self.subtitle_check = ttk.Checkbutton(options, text="Legendas em português e inglês", variable=self.subtitles)
         self.subtitle_check.pack(side="left", padx=18)
         actions = ttk.Frame(frame)
-        actions.grid(row=6, column=0, sticky="ew", pady=(0, 12))
-        self.download_button = ttk.Button(actions, text="Baixar", style="Primary.TButton", command=self.start_download)
+        actions.grid(row=8, column=0, sticky="ew", pady=(0, 12))
+        self.download_button = ttk.Button(actions, text="Baixar / atualizar", style="Primary.TButton", command=self.start_download)
         self.download_button.pack(side="left")
         self.cancel_button = ttk.Button(actions, text="Cancelar", command=self.cancel, state="disabled")
         self.cancel_button.pack(side="left", padx=8)
         ttk.Button(actions, text="Abrir pasta", command=self.open_output).pack(side="right")
-        ttk.Label(frame, textvariable=self.status, wraplength=740).grid(row=7, column=0, sticky="w", pady=6)
-        ttk.Label(frame, textvariable=self.title, wraplength=740).grid(row=9, column=0, sticky="w", pady=(8, 2))
-        ttk.Label(frame, textvariable=self.video_text, wraplength=740).grid(row=10, column=0, sticky="w", pady=(0, 6))
+        ttk.Label(frame, textvariable=self.status, wraplength=740).grid(row=9, column=0, sticky="w", pady=6)
+        ttk.Label(frame, textvariable=self.title, wraplength=740).grid(row=11, column=0, sticky="w", pady=(8, 2))
+        ttk.Label(frame, textvariable=self.video_text, wraplength=740).grid(row=12, column=0, sticky="w", pady=(0, 6))
         self.progress = ttk.Progressbar(frame, mode="determinate")
-        self.progress.grid(row=12, column=0, sticky="ew")
-        ttk.Label(frame, textvariable=self.progress_text, wraplength=740).grid(row=11, column=0, sticky="w", pady=(2, 4))
+        self.progress.grid(row=14, column=0, sticky="ew")
+        ttk.Label(frame, textvariable=self.progress_text, wraplength=740).grid(row=13, column=0, sticky="w", pady=(2, 4))
         self.playlist_frame = ttk.Frame(frame)
-        self.playlist_frame.grid(row=8, column=0, sticky="ew", pady=(4, 0))
+        self.playlist_frame.grid(row=10, column=0, sticky="ew", pady=(4, 0))
         self.playlist_frame.columnconfigure(0, weight=1)
         ttk.Label(self.playlist_frame, textvariable=self.playlist_text, wraplength=740).grid(row=0, column=0, sticky="w")
         self.playlist_bar = ttk.Progressbar(self.playlist_frame, mode="determinate")
@@ -146,8 +169,8 @@ class Application:
         ttk.Label(self.playlist_frame, textvariable=self.playlist_counts, wraplength=740).grid(row=2, column=0, sticky="w")
         self.playlist_frame.grid_remove()
         notebook = ttk.Notebook(frame)
-        notebook.grid(row=13, column=0, sticky="nsew", pady=(12, 0))
-        frame.rowconfigure(13, weight=1)
+        notebook.grid(row=15, column=0, sticky="nsew", pady=(12, 0))
+        frame.rowconfigure(15, weight=1)
         results = ttk.Frame(notebook, padding=10)
         session = ttk.Frame(notebook, padding=10)
         updates = ttk.Frame(notebook, padding=10)
@@ -210,6 +233,7 @@ class Application:
         scrollbar.pack(side="right", fill="y")
         self.details.pack(fill="both", expand=True)
         self.mutable = [self.url_entry, self.output_entry, self.choose_button, self.subtitle_check,
+            self.save_new_button, self.update_saved_button, self.delete_saved_button,
             self.download_button, self.cookie_entry, self.cookie_button, self.profile_entry, self.test_button,
             self.remove_button, self.check_button, self.install_button, self.rollback_button, self.app_rollback_button]
         def resize_labels(event):
@@ -225,7 +249,7 @@ class Application:
         self.busy = value
         for widget in self.mutable:
             widget.configure(state="disabled" if value else "normal")
-        for widget in (self.mode_box, self.browser_box):
+        for widget in (self.mode_box, self.browser_box, self.saved_box):
             widget.configure(state="disabled" if value else "readonly")
         self.cancel_button.configure(state="normal" if value and self.engine else "disabled")
         for widget in (self.retry_button, self.recover_button):
@@ -451,6 +475,118 @@ class Application:
             "output": self.output.get(), "mode": self.mode.get(), "subtitles": self.subtitles.get(),
             "cookie_file": self.cookie_path.get(), "browser": self.browser.get(), "profile": self.profile.get()})
 
+    def update_mode_indicator(self):
+        audio = self.mode.get().startswith("MP3")
+        self.mode_indicator.configure(text="ÁUDIO MP3" if audio else "VÍDEO MP4",
+                                      bg="#dbeafe" if audio else "#dcfce7",
+                                      fg="#15427d" if audio else "#17613b")
+
+    def refresh_saved_downloads(self):
+        self.saved_box.configure(values=[row["name"] for row in self.saved_downloads])
+
+    def selected_download(self):
+        return next((row for row in self.saved_downloads if row["id"] == self.selected_saved_id), None)
+
+    def load_selected_download(self, event=None):
+        row = next((row for row in self.saved_downloads if row["name"] == self.saved_name.get()), None)
+        if row is None:
+            return
+        self.selected_saved_id = row["id"]
+        self.url.set(row["url"])
+        self.output.set(row["output"])
+        self.mode.set(row["mode"])
+        self.subtitles.set(row["subtitles"])
+        self.update_mode_indicator()
+        self.status.set(f"Download salvo carregado: {row['name']}. Confira as opções e clique em Baixar / atualizar.")
+
+    def playlist_choice(self, url):
+        query = parse_qs(urlsplit(url).query)
+        if "list" not in query:
+            return False
+        if urlsplit(url).path == "/playlist":
+            return True
+        dialog = tk.Toplevel(self.root)
+        dialog.title("O que baixar?")
+        dialog.transient(self.root)
+        dialog.resizable(False, False)
+        dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
+        ttk.Label(dialog, text="Este link contém um vídeo e uma playlist.", padding=(20, 18)).pack()
+        actions = ttk.Frame(dialog, padding=(20, 0, 20, 20))
+        actions.pack()
+        answer = {"value": None}
+        def choose(value):
+            answer["value"] = value
+            dialog.destroy()
+        ttk.Button(actions, text="PLAYLIST COMPLETA", command=lambda: choose(True)).pack(side="left", padx=4)
+        ttk.Button(actions, text="VÍDEO", command=lambda: choose(False)).pack(side="left", padx=4)
+        ttk.Button(actions, text="CANCELAR", command=lambda: choose(None)).pack(side="left", padx=4)
+        dialog.grab_set()
+        dialog.wait_window()
+        return answer["value"]
+
+    def saved_from_form(self, name, identifier=None):
+        url = validate_url(self.url.get())
+        previous = self.selected_download()
+        playlist = previous["playlist"] if identifier and previous and previous["url"] == url else self.playlist_choice(url)
+        if playlist is None:
+            return None
+        return make_saved(name, url, self.output.get(), self.mode.get(), self.subtitles.get(), playlist, identifier)
+
+    def save_new_download(self):
+        name = simpledialog.askstring("Salvar download", "Nome para este download:", parent=self.root)
+        if name is None:
+            return
+        try:
+            if any(row["name"].casefold() == name.strip().casefold() for row in self.saved_downloads):
+                raise ValueError("Já existe um download salvo com esse nome.")
+            row = self.saved_from_form(name)
+            if row is None:
+                return
+            updated = [*self.saved_downloads, row]
+            save_saved(self.saved_path, updated)
+            self.saved_downloads = updated
+            self.selected_saved_id = row["id"]
+            self.saved_name.set(row["name"])
+            self.refresh_saved_downloads()
+            self.status.set(f"Download salvo: {row['name']}.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def update_saved_download(self):
+        previous = self.selected_download()
+        if previous is None:
+            self.status.set("Selecione um download salvo para atualizar.")
+            return
+        try:
+            row = self.saved_from_form(previous["name"], previous["id"])
+            if row is None:
+                return
+            updated = [row if item["id"] == row["id"] else item for item in self.saved_downloads]
+            save_saved(self.saved_path, updated)
+            self.saved_downloads = updated
+            self.status.set(f"Download salvo atualizado: {row['name']}.")
+        except (OSError, ValueError) as exc:
+            self.status.set(str(exc))
+
+    def delete_saved_download(self):
+        row = self.selected_download()
+        if row is None:
+            self.status.set("Selecione um download salvo para excluir.")
+            return
+        if not messagebox.askyesno("Excluir download salvo", f"Excluir '{row['name']}' da lista?\n\nOs arquivos baixados e os históricos serão preservados.", parent=self.root):
+            return
+        remaining = [item for item in self.saved_downloads if item["id"] != row["id"]]
+        try:
+            save_saved(self.saved_path, remaining)
+        except OSError as exc:
+            self.status.set(str(exc))
+            return
+        self.saved_downloads = remaining
+        self.selected_saved_id = None
+        self.saved_name.set("")
+        self.refresh_saved_downloads()
+        self.status.set("Download salvo removido da lista. Arquivos e históricos preservados.")
+
     def session(self):
         if self.cookie_path.get().strip():
             return Session(cookie_file=validate_cookie_file(Path(self.cookie_path.get().strip())))
@@ -459,12 +595,15 @@ class Application:
 
     def task(self, choose_playlist=True):
         url = validate_url(self.url.get())
-        playlist = "list" in parse_qs(urlsplit(url).query)
-        if choose_playlist and playlist and urlsplit(url).path != "/playlist":
-            answer = messagebox.askyesnocancel("Vídeo ou playlist", "Baixar a playlist inteira?\n\nSim: playlist inteira.\nNão: somente este vídeo.", parent=self.root)
-            if answer is None:
-                return None
-            playlist = answer
+        saved = self.selected_download()
+        if saved and saved["url"] == url:
+            playlist = saved["playlist"]
+        elif choose_playlist:
+            playlist = self.playlist_choice(url)
+        else:
+            playlist = "list" in parse_qs(urlsplit(url).query)
+        if playlist is None:
+            return None
         return Task(url, Path(self.output.get()).expanduser().resolve(), audio=self.mode.get().startswith("MP3"),
                     subtitles=self.subtitles.get(), playlist=playlist, session=self.session())
 

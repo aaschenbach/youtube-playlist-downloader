@@ -5,7 +5,7 @@ Baixe vídeos, playlists, áudio MP3 e legendas com uma janela no seu computador
 ## Baixar e abrir
 
 1. Abra a página de [Releases](https://github.com/aaschenbach/youtube-playlist-downloader/releases).
-2. Baixe o **YouTubeDownloader-2.0.4-Windows-x64.zip** da versão disponível. Os arquivos **Source code** são para desenvolvimento.
+2. Baixe o **YouTubeDownloader-2.0.5-Windows-x64.zip** da versão disponível. Os arquivos **Source code** são para desenvolvimento.
 3. Extraia **todo** o ZIP e abra **YouTube Downloader.exe** na pasta extraída.
 
 A primeira abertura prepara as ferramentas com internet e mostra cada etapa. Não precisa instalar Python, Git, Node ou FFmpeg, abrir terminal, alterar PATH ou ter acesso de administrador. Mantenha o executável junto da pasta `_internal`.
@@ -14,7 +14,11 @@ A primeira abertura prepara as ferramentas com internet e mostra cada etapa. Nã
 
 ## Baixar e retomar
 
-Cole o link, escolha a pasta, selecione MP4 ou MP3 e clique em **Baixar**. Legendas tenta obter português e inglês quando disponíveis. A pasta inicial é `Downloads/YouTube`. Para um link que contenha vídeo e playlist, o aplicativo pergunta qual deseja baixar.
+Cole o link, escolha a pasta, selecione MP4 ou MP3 e clique em **Baixar / atualizar**. Legendas tenta obter português e inglês quando disponíveis. A pasta inicial é `Downloads/YouTube`. Para um link que contenha vídeo e playlist, o aplicativo pergunta qual deseja baixar.
+
+Para repetir uma playlist, configure link, pasta, formato e legendas e clique em **Salvar como novo** em **Downloads salvos**. Na próxima vez, selecione o nome salvo e clique em **Baixar / atualizar**. Os campos são carregados para conferência; use **Atualizar salvo** para guardar alterações ou **Excluir salvo** para tirar a entrada da lista sem apagar arquivos. A escolha entre playlist completa e vídeo também fica guardada. O indicador ao lado do formato mostra **VÍDEO MP4** em verde ou **ÁUDIO MP3** em azul. Links que contêm vídeo e playlist apresentam os botões **PLAYLIST COMPLETA**, **VÍDEO** e **CANCELAR**.
+
+Downloads salvos ficam no computador, em `%LOCALAPPDATA%\YouTubeDownloader\saved-downloads.json`, sem cookies ou dados da sessão. A sessão atual continua sendo escolhida na aba **Sessão**. O aplicativo guarda o histórico de vídeos separadamente para MP4 e MP3 na pasta de destino. Ao usar uma pasta com `.download-archive.txt` antigo, cria os novos históricos sem alterar o original: identifica formatos pelos arquivos existentes e, quando não consegue identificar, mantém a marcação nos dois formatos para evitar baixar novamente sem aviso. Nesse caso, confira os arquivos da pasta se quiser obter o outro formato. **Recuperar legendas** continua disponível para vídeos já registrados.
 
 Arquivos de playlist recebem numeração com pelo menos três dígitos: `001 -`, `002 -`, `003 -`.
 

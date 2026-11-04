@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
+from .archive import archive_for
 from .settings import redact, validate_cookie_file, validate_url
 
 Emit = Callable[[dict], None]
@@ -160,7 +161,7 @@ class Engine:
         if task.subtitles_only:
             args += ["--skip-download"]
         else:
-            args += ["--download-archive", str(output / ".download-archive.txt")]
+            args += ["--download-archive", str(archive_for(output, task.audio))]
             args += ["-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "192K"] if task.audio else [
                 "-f", "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]", "--merge-output-format", "mp4"]
         if task.subtitles or task.subtitles_only:

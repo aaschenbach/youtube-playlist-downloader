@@ -8,6 +8,7 @@ from shutil import which
 
 from yt_dlp import YoutubeDL
 
+from .archive import archive_for
 from .engine import Session
 from .settings import data_dir, read_json
 
@@ -82,7 +83,7 @@ def build_ydl_opts(cfg: DownloadConfig) -> dict:
         "format": fmt,
         "outtmpl": outtmpl,
         "merge_output_format": cfg.merge_format,
-        "download_archive": str(out_dir / ".download-archive.txt"),
+        "download_archive": str(archive_for(out_dir, cfg.audio_only)),
         "noplaylist": not cfg.playlist,
         "ignoreerrors": cfg.continue_on_error,
         "windowsfilenames": True,

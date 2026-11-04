@@ -9,9 +9,11 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from ytdl.downloader import DownloadConfig, build_ydl_opts, fetch_info
+from ytdl.archive import archive_for
 from ytdl.engine import Cancelled, Engine, EngineError, Session, Task, Tools
 from ytdl.installation import Installation, download_asset, extract_zip, validate_manifest, executable_version, preparation_directory, retry_windows
 from ytdl.settings import friendly_error, read_json, redact, validate_cookie_file, validate_url, write_json
+from ytdl.saved_downloads import load as load_saved, make as make_saved, save as save_saved
 
 
 URL = "https://youtube.com/live/abcdefghijk"
@@ -89,6 +91,18 @@ class SessionTests(unittest.TestCase):
                 validate_url(value)
 
 
+class SavedDownloadsTests(unittest.TestCase):
+    def test_save_and_load_keeps_choices_without_session_data(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "saved-downloads.json"
+            row = make_saved("Playlist semanal", "https://www.youtube.com/playlist?list=PLtest",
+                             str(Path(temporary) / "Vídeos"), "MP4 — vídeo e áudio", True, True)
+            save_saved(path, [row])
+            self.assertEqual(load_saved(path), [row])
+            self.assertNotIn("cookie", path.read_text(encoding="utf-8"))
+            self.assertEqual(load_saved(Path(temporary) / "missing.json"), [])
+
+
 class EngineTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
@@ -139,6 +153,31 @@ class EngineTests(unittest.TestCase):
         self.assertIn("--skip-download", engine.calls[-1])
         self.assertIn("--no-overwrites", engine.calls[-1])
         self.assertEqual(archive.read_text(), "youtube abc\n")
+
+    def test_legacy_archive_separates_known_formats_and_keeps_unknown_entries(self):
+        legacy = self.folder / ".download-archive.txt"
+        original = "youtube video1\nyoutube audio1\nyoutube missing1\n"
+        legacy.write_text(original, encoding="utf-8")
+        (self.folder / "001 - Video [video1].mp4").touch()
+        (self.folder / "002 - Audio [audio1].mp3").touch()
+        mp4 = archive_for(self.folder, False)
+        mp3 = archive_for(self.folder, True)
+        self.assertEqual(mp4.read_text(), "youtube video1\nyoutube missing1\n")
+        self.assertEqual(mp3.read_text(), "youtube audio1\nyoutube missing1\n")
+        self.assertEqual(legacy.read_text(), original)
+        with mp4.open("a", encoding="utf-8") as stream:
+            stream.write("youtube newvideo\n")
+        self.assertEqual(archive_for(self.folder, False).read_text(), "youtube video1\nyoutube missing1\nyoutube newvideo\n")
+
+    def test_engine_uses_archive_for_chosen_format(self):
+        engine = FakeEngine(self.tools, [])
+        engine.download(self.task)
+        self.assertEqual(engine.calls[-1][engine.calls[-1].index("--download-archive") + 1],
+                         str(self.folder / ".download-archive-mp4.txt"))
+        self.task.audio = True
+        engine.download(self.task)
+        self.assertEqual(engine.calls[-1][engine.calls[-1].index("--download-archive") + 1],
+                         str(self.folder / ".download-archive-mp3.txt"))
 
     def test_postprocessing_failure_is_not_counted_as_complete(self):
         engine = FakeEngine(self.tools, ['YTDL_ITEM:"abc"', "ERROR: Conversion failed", 'YTDL_DONE:"abc"'])
@@ -379,6 +418,65 @@ class InstallationTests(unittest.TestCase):
 
 
 class GuiTests(unittest.TestCase):
+    def test_saved_download_loads_configuration_and_playlist_choice(self):
+        import tkinter as tk
+        from ytdl.gui import Application
+        with tempfile.TemporaryDirectory() as temporary:
+            root = tk.Tk()
+            root.withdraw()
+            try:
+                installer = Installation(Path(temporary))
+                app = Application(root, installer, startup=False)
+                app.url.set("https://www.youtube.com/playlist?list=PLtest")
+                app.output.set(str(Path(temporary) / "weekly"))
+                app.mode.set("MP3 — somente áudio")
+                app.subtitles.set(True)
+                with patch("ytdl.gui.simpledialog.askstring", return_value="Semanal"):
+                    app.save_new_download()
+                self.assertEqual(len(load_saved(app.saved_path)), 1)
+                app.url.set("")
+                app.mode.set("MP4 — vídeo e áudio")
+                app.subtitles.set(False)
+                app.load_selected_download()
+                self.assertTrue(app.task().playlist)
+                self.assertTrue(app.task().audio)
+                self.assertTrue(app.task().subtitles)
+                self.assertEqual(app.mode_indicator.cget("text"), "ÁUDIO MP3")
+                app.mode.set("MP4 — vídeo e áudio")
+                app.update_mode_indicator()
+                app.update_saved_download()
+                self.assertEqual(load_saved(app.saved_path)[0]["mode"], "MP4 — vídeo e áudio")
+                self.assertEqual(app.mode_indicator.cget("text"), "VÍDEO MP4")
+                with patch("ytdl.gui.messagebox.askyesno", return_value=True):
+                    app.delete_saved_download()
+                self.assertEqual(load_saved(app.saved_path), [])
+            finally:
+                for callback in root.tk.call("after", "info"):
+                    root.after_cancel(callback)
+                root.destroy()
+
+    def test_ambiguous_link_dialog_has_explicit_choices(self):
+        import tkinter as tk
+        from ytdl.gui import Application
+        with tempfile.TemporaryDirectory() as temporary:
+            root = tk.Tk()
+            root.withdraw()
+            try:
+                app = Application(root, Installation(Path(temporary)), startup=False)
+                def click_video():
+                    dialog = next(child for child in root.winfo_children() if isinstance(child, tk.Toplevel))
+                    buttons = [child for frame in dialog.winfo_children() for child in frame.winfo_children()
+                               if child.winfo_class() == "TButton"]
+                    self.assertEqual([button.cget("text") for button in buttons],
+                                     ["PLAYLIST COMPLETA", "VÍDEO", "CANCELAR"])
+                    buttons[1].invoke()
+                root.after(50, click_video)
+                self.assertFalse(app.playlist_choice("https://www.youtube.com/watch?v=abc&list=PLtest"))
+            finally:
+                for callback in root.tk.call("after", "info"):
+                    root.after_cancel(callback)
+                root.destroy()
+
     def test_image_completion_wait_audio_finalization_and_explicit_success(self):
         import tkinter as tk
         from ytdl.gui import Application

@@ -2,7 +2,12 @@ YouTube Downloader para Windows 10/11 (64 bits)
 
 1. Extraia TODO o ZIP para uma pasta do seu computador.
 2. Abra YouTube Downloader.exe dentro da pasta extraída.
-3. Aguarde a preparação inicial, cole o link e clique em Baixar.
+3. Aguarde a preparação inicial, cole o link e clique em Baixar / atualizar.
+
+Para repetir uma playlist, configure link, pasta, MP4/MP3 e legendas e use
+Salvar como novo. Depois selecione o nome em Downloads salvos e clique em
+Baixar / atualizar. O indicador verde significa MP4; o azul significa MP3.
+Se o link tiver vídeo e playlist, escolha PLAYLIST COMPLETA ou VÍDEO.
 
 Não é necessário instalar Python, Git, FFmpeg ou Node manualmente.
 A primeira preparação precisa de internet e mostra cada etapa.
